@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Midnight Tasks · Dock</title>
+<style>
+  :root{
+    --void:#0a0812; --void-2:#120e1d; --panel:#171223; --panel-2:#1e1830;
+    --line:rgba(212,175,55,.14); --gold:#e6c56b; --gold-deep:#d4af37;
+    --gold-glow:rgba(230,197,107,.35); --violet:#8b7bc7; --violet-soft:rgba(139,123,199,.18);
+    --ink:#ece7f6; --muted:#8a7fa6; --muted-2:#5f5878; --done:#4a4560; --danger:#c77;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    background:
+      radial-gradient(600px 400px at 90% -5%, rgba(139,123,199,.10), transparent 60%),
+      radial-gradient(500px 400px at -10% 105%, rgba(212,175,55,.06), transparent 55%),
+      var(--void);
+    color:var(--ink); height:100%; overflow:hidden; -webkit-font-smoothing:antialiased;
+  }
+  #stars{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.6}
+  .app{position:relative;z-index:1;height:100vh;display:flex;flex-direction:column;
+    border-left:1px solid var(--line);border-right:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(24,19,38,.55), rgba(12,10,20,.75));backdrop-filter:blur(6px)}
+
+  /* fixed head */
+  .head{flex:none;padding:12px 12px 8px}
+  .top{display:flex;align-items:center;justify-content:space-between}
+  .brand{font-family:Georgia,serif;font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:var(--gold);opacity:.85}
+  .clock{font-family:Georgia,serif;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .date{font-family:Georgia,serif;font-size:16px;margin:3px 0 1px;color:var(--ink);line-height:1.15}
+  .greeting{font-size:10.5px;color:var(--muted)}
+
+  .next{position:relative;margin:8px 12px 0;border:1px solid var(--gold-glow);
+    background:radial-gradient(120% 140% at 100% 0%, rgba(230,197,107,.13), rgba(230,197,107,.02) 55%), var(--panel);
+    border-radius:10px;padding:9px 10px 9px 12px;overflow:hidden;flex:none}
+  .next::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(var(--gold),var(--gold-deep));box-shadow:0 0 14px var(--gold-glow)}
+  .next .lbl{font-size:8.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--gold);opacity:.8;margin-bottom:3px}
+  .next .txt{font-family:Georgia,serif;font-size:13.5px;line-height:1.25;color:var(--ink)}
+  .next .meta{font-size:10px;color:var(--muted);margin-top:3px}
+  .next.empty .txt{color:var(--muted-2);font-style:italic;font-size:12px}
+  .next .donebtn{position:absolute;top:8px;right:8px;background:none;border:1px solid var(--gold-glow);color:var(--gold);border-radius:7px;font-size:9.5px;padding:3px 6px;cursor:pointer}
+  .next .donebtn:hover{background:var(--gold);color:var(--void)}
+
+  .add{flex:none;padding:8px 12px 6px;display:flex;flex-direction:column;gap:6px}
+  .addrow{display:flex;gap:6px}
+  .addrow input{flex:1;min-width:0;background:var(--void-2);border:1px solid var(--line);border-radius:9px;padding:8px 9px;color:var(--ink);font-size:12.5px;font-family:inherit;outline:none}
+  .addrow input::placeholder{color:var(--muted-2)}
+  .addrow input:focus{border-color:var(--gold-glow)}
+  .addbtn{background:linear-gradient(180deg,var(--gold),var(--gold-deep));border:none;color:var(--void);font-weight:600;border-radius:9px;padding:0 12px;cursor:pointer;font-size:14px}
+  .seg{display:flex;background:var(--void-2);border:1px solid var(--line);border-radius:8px;padding:2px}
+  .seg button{flex:1;background:none;border:none;color:var(--muted);font-size:10px;letter-spacing:.03em;padding:5px 4px;border-radius:6px;cursor:pointer;font-family:inherit}
+  .seg button.on{background:var(--violet-soft);color:var(--ink)}
+
+  /* scroll area */
+  .scroll{flex:1;overflow-y:auto;padding:4px 12px 8px;scrollbar-width:thin;scrollbar-color:var(--muted-2) transparent}
+  .scroll::-webkit-scrollbar{width:6px}.scroll::-webkit-scrollbar-thumb{background:var(--muted-2);border-radius:3px}
+
+  .section{margin-bottom:6px}
+  .shead{display:flex;align-items:center;justify-content:space-between;padding:6px 2px 5px;cursor:pointer;position:sticky;top:0;background:linear-gradient(180deg,var(--void) 70%,transparent);z-index:2}
+  .shead h2{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .shead .count{font-size:9.5px;color:var(--muted-2);font-variant-numeric:tabular-nums}
+  .list{display:flex;flex-direction:column;gap:5px;list-style:none;min-height:2px}
+
+  .task{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:8px 9px;animation:pop .2s ease}
+  @keyframes pop{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+  .task.drag{opacity:.4}.task.over{border-color:var(--gold-glow)}
+  .check{width:16px;height:16px;flex:none;border-radius:50%;border:1.5px solid var(--muted-2);cursor:pointer;position:relative;background:transparent}
+  .check:hover{border-color:var(--gold)}
+  .check::after{content:"";position:absolute;inset:0;border-radius:50%;transform:scale(0);transition:.18s;background:radial-gradient(var(--gold),var(--gold-deep))}
+  .task.done .check{border-color:var(--gold-deep)}.task.done .check::after{transform:scale(.55)}
+  .body{flex:1;min-width:0}
+  .body .t{font-size:12px;line-height:1.3;color:var(--ink);word-break:break-word}
+  .task.done .body .t{color:var(--done);text-decoration:line-through}
+  .task.blocked{opacity:.6}
+  .tag{display:inline-block;font-size:8px;letter-spacing:.05em;text-transform:uppercase;color:var(--violet);border:1px solid var(--violet-soft);border-radius:4px;padding:0 4px;margin-top:3px}
+  .time{display:inline-block;font-size:9px;color:var(--gold);margin-top:2px;font-variant-numeric:tabular-nums;opacity:.85}
+  .actions{display:flex;gap:1px;flex:none}
+  .actions button{background:none;border:none;color:var(--muted-2);cursor:pointer;font-size:10px;padding:3px 4px;border-radius:6px;font-family:inherit;line-height:1}
+  .actions button:hover{color:var(--ink);background:var(--panel-2)}
+  .actions .del:hover{color:var(--danger)}
+  .empty-note{font-size:10.5px;color:var(--muted-2);font-style:italic;padding:5px 3px 7px;text-align:center}
+
+  .foot{flex:none;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-top:1px solid var(--line)}
+  .foot .stat{font-size:9.5px;color:var(--muted)}.foot .stat b{color:var(--gold);font-weight:600}
+  .clearbtn{background:none;border:none;color:var(--muted-2);font-size:9.5px;cursor:pointer;padding:3px 5px;border-radius:6px}
+  .clearbtn:hover{color:var(--danger)}
+
+  .collapsed .list,.collapsed .empty-note{display:none}
+  .chev{color:var(--muted-2);font-size:8px;display:inline-block;transition:.2s}
+  .collapsed .chev{transform:rotate(-90deg)}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+<div class="app">
+  <div class="head">
+    <div class="top"><span class="brand">Midnight Tasks</span><span class="clock" id="clock">—</span></div>
+    <div class="date" id="date">—</div>
+    <div class="greeting" id="greeting">—</div>
+  </div>
+
+  <div class="next empty" id="next">
+    <div class="lbl">Next up</div>
+    <div class="txt" id="nextTxt">Wala pang laman sa Today.</div>
+    <div class="meta" id="nextMeta"></div>
+    <button class="donebtn" id="nextDone" style="display:none">✓</button>
+  </div>
+
+  <div class="add">
+    <div class="seg" id="seg">
+      <button data-target="today" class="on">Today</button>
+      <button data-target="work">Work</button>
+      <button data-target="personal">Personal</button>
+    </div>
+    <div class="addrow">
+      <input id="input" placeholder="Ano gagawin?" autocomplete="off">
+      <button class="addbtn" id="addbtn">+</button>
+    </div>
+  </div>
+
+  <div class="scroll">
+    <div class="section" id="sec-today">
+      <div class="shead" data-sec="today"><h2><span class="chev">▾</span> Today · focus</h2><span class="count" id="c-today">0</span></div>
+      <ul class="list" id="list-today"></ul>
+      <div class="empty-note" id="empty-today">Hila ng 1–3 galing Work ↓</div>
+    </div>
+    <div class="section" id="sec-work">
+      <div class="shead" data-sec="work"><h2><span class="chev">▾</span> Work · Grim Stacks</h2><span class="count" id="c-work">0</span></div>
+      <ul class="list" id="list-work"></ul>
+      <div class="empty-note" id="empty-work">Walang laman. ✧</div>
+    </div>
+    <div class="section collapsed" id="sec-personal">
+      <div class="shead" data-sec="personal"><h2><span class="chev">▾</span> Personal</h2><span class="count" id="c-personal">0</span></div>
+      <ul class="list" id="list-personal"></ul>
+      <div class="empty-note" id="empty-personal">Sarili mong projecto dito.</div>
+    </div>
+  </div>
+
+  <div class="foot"><span class="stat" id="stat">—</span><button class="clearbtn" id="clear">Clear tapos</button></div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const KEY="midnight-tasks-v2";
+  const LANES={today:{name:"Today",short:"T"},work:{name:"Work",short:"W"},personal:{name:"Personal",short:"P"}};
+  let state=load(), addTarget="today", dragId=null;
+  function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+  function today(){const d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();}
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}}
+  function seed(){
+    let o=0; const mk=(text,list,extra)=>Object.assign({id:uid(),text,done:false,list,mins:null,order:o++,blocked:false,tag:null},extra||{});
+    return [
+      mk("Welcome-screen loop MP4 — 20s original, lights dim/glow, loop to 5min","today"),
+      mk("Missing Pestral poster","work"),mk("Revised Bowtruckle poster","work"),mk("Revised Pixie poster","work"),
+      mk("Original magical-creature poster #1","work"),mk("Original magical-creature poster #2","work"),
+      mk("MACUSA logo / seal","work"),mk("Gameplay idle-screen background","work"),mk("Technical-help text overlay design","work"),
+      mk("Bixby rescue finale video","work"),mk("Success screen","work"),mk("Failure screen","work"),
+      mk("Interior window graphics — neighboring streets & shops","work"),mk("Exterior window graphics — inside Grim Stacks","work"),
+      mk("Follow-up email sa client — hingin mission + wand docs","work",{tag:"unblocker"}),
+      mk("Mission intro video","work",{blocked:true,tag:"waiting on client"}),mk("Wand tutorial video","work",{blocked:true,tag:"waiting on client"}),
+      mk("Midnight Thoughts: The Gifts — 100 cards","personal"),mk("Mold: Paso","personal"),mk("Clay","personal"),
+      mk("Keychain blindbox","personal"),mk("Fish pin","personal"),mk("In My Shoes — story","personal"),
+      mk("Paint","personal"),mk("Drip — digital NFT (brainstorm pa lang)","personal"),
+    ];
+  }
+  function load(){try{const raw=localStorage.getItem(KEY);if(raw){const d=JSON.parse(raw);return {tasks:d.tasks||[],stamp:d.stamp||today()};}}catch(e){}return {tasks:seed(),stamp:today()};}
+  function parseTime(text){const re=/\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i;const m=text.match(re);if(!m)return{text:text.trim(),mins:null};let h=parseInt(m[1],10);const min=m[2]?parseInt(m[2],10):0;const ap=m[3]?m[3].toLowerCase():null;if(!ap&&!m[2])return{text:text.trim(),mins:null};if(h>23||min>59)return{text:text.trim(),mins:null};if(ap==="pm"&&h<12)h+=12;if(ap==="am"&&h===12)h=0;const clean=(text.slice(0,m.index)+text.slice(m.index+m[0].length)).replace(/\s{2,}/g," ").trim();return{text:clean||text.trim(),mins:h*60+min};}
+  function fmtTime(mins){if(mins==null)return"";let h=Math.floor(mins/60),m=mins%60,ap=h>=12?"PM":"AM",hh=h%12;if(hh===0)hh=12;return hh+(m?":"+String(m).padStart(2,"0"):"")+" "+ap;}
+  function add(text){text=text.trim();if(!text)return;const {text:t,mins}=addTarget==="today"?parseTime(text):{text,mins:null};state.tasks.push({id:uid(),text:t,done:false,list:addTarget,mins,order:Date.now(),blocked:false,tag:null});save();render();}
+  function toggle(id){const t=find(id);if(t){t.done=!t.done;save();render();}}
+  function del(id){state.tasks=state.tasks.filter(x=>x.id!==id);save();render();}
+  function move(id,list){const t=find(id);if(t){t.list=list;if(list!=="today")t.mins=null;t.order=Date.now();save();render();}}
+  function find(id){return state.tasks.find(x=>x.id===id);}
+  function clearDone(){state.tasks=state.tasks.filter(x=>!x.done);save();render();}
+  function sortList(arr){return arr.slice().sort((a,b)=>{if(a.done!==b.done)return a.done?1:-1;if(a.blocked!==b.blocked)return a.blocked?1:-1;if(a.mins!=null&&b.mins!=null)return a.mins-b.mins;if(a.mins!=null)return -1;if(b.mins!=null)return 1;return a.order-b.order;});}
+  function render(){
+    ["today","work","personal"].forEach(l=>{const arr=sortList(state.tasks.filter(t=>t.list===l));paint("list-"+l,arr,l);document.getElementById("empty-"+l).style.display=arr.length?"none":"block";document.getElementById("c-"+l).textContent=arr.filter(t=>!t.done&&!t.blocked).length;});
+    const todo=sortList(state.tasks.filter(t=>t.list==="today"));const next=todo.find(t=>!t.done);
+    const box=document.getElementById("next"),txt=document.getElementById("nextTxt"),meta=document.getElementById("nextMeta"),db=document.getElementById("nextDone");
+    if(next){box.classList.remove("empty");txt.textContent=next.text;meta.textContent=next.mins!=null?"⏱ "+fmtTime(next.mins):"";db.style.display="block";db.onclick=()=>toggle(next.id);}
+    else{box.classList.add("empty");txt.textContent=todo.length?"Tapos na Today. ✧":"Hila galing Work ↓";meta.textContent="";db.style.display="none";}
+    const done=state.tasks.filter(t=>t.done).length,open=state.tasks.filter(t=>!t.done&&!t.blocked).length,blk=state.tasks.filter(t=>t.blocked&&!t.done).length;
+    document.getElementById("stat").innerHTML="<b>"+open+"</b> gawin · "+done+" tapos"+(blk?" · "+blk+" block":"");
+  }
+  function paint(elId,arr,list){
+    const ul=document.getElementById(elId);ul.innerHTML="";
+    arr.forEach(t=>{
+      const li=document.createElement("li");li.className="task"+(t.done?" done":"")+(t.blocked?" blocked":"");li.draggable=(list==="today"&&!t.done);li.dataset.id=t.id;
+      const chk=document.createElement("button");chk.className="check";chk.onclick=()=>toggle(t.id);
+      const body=document.createElement("div");body.className="body";
+      const tt=document.createElement("div");tt.className="t";tt.textContent=t.text;body.appendChild(tt);
+      if(t.mins!=null){const tm=document.createElement("span");tm.className="time";tm.textContent=fmtTime(t.mins);body.appendChild(tm);}
+      if(t.tag){const tg=document.createElement("span");tg.className="tag";tg.textContent=t.tag;body.appendChild(tg);}
+      const act=document.createElement("div");act.className="actions";
+      Object.keys(LANES).filter(l=>l!==list).forEach(l=>{const mv=document.createElement("button");mv.textContent="→"+LANES[l].short;mv.title="Ilipat sa "+LANES[l].name;mv.onclick=()=>move(t.id,l);act.appendChild(mv);});
+      const dl=document.createElement("button");dl.className="del";dl.textContent="✕";dl.onclick=()=>del(t.id);act.appendChild(dl);
+      li.appendChild(chk);li.appendChild(body);li.appendChild(act);
+      if(li.draggable){
+        li.addEventListener("dragstart",e=>{dragId=t.id;li.classList.add("drag");e.dataTransfer.effectAllowed="move";});
+        li.addEventListener("dragend",()=>{dragId=null;li.classList.remove("drag");document.querySelectorAll(".over").forEach(x=>x.classList.remove("over"));});
+        li.addEventListener("dragover",e=>{e.preventDefault();li.classList.add("over");});
+        li.addEventListener("dragleave",()=>li.classList.remove("over"));
+        li.addEventListener("drop",e=>{e.preventDefault();li.classList.remove("over");reorder(dragId,t.id);});
+      }
+      ul.appendChild(li);
+    });
+  }
+  function reorder(fromId,toId){if(!fromId||fromId===toId)return;const a=find(fromId),b=find(toId);if(!a||!b)return;a.mins=null;const todo=sortList(state.tasks.filter(t=>t.list==="today"&&!t.done));const ids=todo.map(t=>t.id).filter(id=>id!==fromId);const idx=ids.indexOf(toId);ids.splice(idx,0,fromId);ids.forEach((id,i)=>{const t=find(id);if(t)t.order=i;});save();render();}
+  function tick(){const d=new Date();let h=d.getHours(),m=d.getMinutes(),ap=h>=12?"PM":"AM",hh=h%12;if(hh===0)hh=12;document.getElementById("clock").textContent=hh+":"+String(m).padStart(2,"0")+" "+ap;document.getElementById("date").textContent=d.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});const g=h<5?"Gabing-gabi pa.":h<12?"Umaga, Nok.":h<18?"Anong susunod?":"Tapusin natin 'to.";document.getElementById("greeting").textContent=g;}
+  (function rollover(){if(state.stamp!==today()){state.stamp=today();save();}})();
+  const input=document.getElementById("input");
+  document.getElementById("addbtn").onclick=()=>{add(input.value);input.value="";input.focus();};
+  input.addEventListener("keydown",e=>{if(e.key==="Enter"){add(input.value);input.value="";}});
+  document.getElementById("seg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;addTarget=b.dataset.target;document.querySelectorAll("#seg button").forEach(x=>x.classList.toggle("on",x===b));input.focus();});
+  document.getElementById("clear").onclick=clearDone;
+  document.querySelectorAll(".shead").forEach(h=>h.addEventListener("click",()=>document.getElementById("sec-"+h.dataset.sec).classList.toggle("collapsed")));
+  (function stars(){const c=document.getElementById("stars"),x=c.getContext("2d");const reduce=window.matchMedia("(prefers-reduced-motion:reduce)").matches;let w,hgt,pts;function reset(){w=c.width=innerWidth;hgt=c.height=innerHeight;pts=Array.from({length:Math.min(70,Math.round(w*hgt/14000))},()=>({x:Math.random()*w,y:Math.random()*hgt,r:Math.random()*1.2+.2,a:Math.random()*.6+.1,tw:Math.random()*.02+.004,ph:Math.random()*6.28,vy:Math.random()*.1+.02}));}reset();addEventListener("resize",reset);function frame(t){x.clearRect(0,0,w,hgt);for(const p of pts){const a=reduce?p.a:p.a*(0.5+0.5*Math.sin(t*p.tw+p.ph));x.beginPath();x.arc(p.x,p.y,p.r,0,6.28);x.fillStyle="rgba(230,210,255,"+a+")";x.fill();if(!reduce){p.y+=p.vy;if(p.y>hgt){p.y=-2;p.x=Math.random()*w;}}}requestAnimationFrame(frame);}requestAnimationFrame(frame);})();
+  tick();setInterval(tick,15000);render();input.focus();
+})();
+</script>
+</body>
+</html>
